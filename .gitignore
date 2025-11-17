@@ -1,0 +1,14 @@
+# Vault data directory
+vault-data/
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+

@@ -1,0 +1,6 @@
+vault-data/
+.git/
+.gitignore
+README.md
+*.md
+

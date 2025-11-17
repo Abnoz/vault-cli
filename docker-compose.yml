@@ -1,0 +1,114 @@
+services:
+  vault:
+    image: hashicorp/vault:latest
+    container_name: vault
+    ports:
+      - "8200:8200"
+    env_file:
+      - .env
+    environment:
+      VAULT_ADDR: http://0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./vault-data:/vault/data
+      - ./vault-config:/vault/config
+    command: vault server -config=/vault/config/vault.hcl
+    networks:
+      - vault-network
+    healthcheck:
+      test: ["CMD-SHELL", "vault status >/dev/null 2>&1 || [ $? -eq 2 ]"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  vault-init:
+    image: hashicorp/vault:latest
+    container_name: vault-init
+    env_file:
+      - .env
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      VAULT_UNSEAL_KEY: ${VAULT_UNSEAL_KEY:-}
+    volumes:
+      - ./init-vault-docker.sh:/init.sh:ro
+    entrypoint: /bin/sh
+    command: -c "apk add --no-cache jq && sh /init.sh"
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - vault-network
+    restart: "no"
+
+  vault-populate:
+    image: hashicorp/vault:latest
+    container_name: vault-populate
+    env_file:
+      - .env
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_TOKEN}
+    volumes:
+      - ./populate-vault-docker.sh:/populate.sh:ro
+    entrypoint: /bin/sh
+    command: -c "sh /populate.sh"
+    depends_on:
+      vault:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
+    networks:
+      - vault-network
+    restart: "no"
+
+  vault-api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: vault-api
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      API_KEY: ${API_KEY}
+    depends_on:
+      vault:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
+      vault-populate:
+        condition: service_completed_successfully
+    networks:
+      - vault-network
+
+  vault-cli:
+    build:
+      context: ./cli
+      dockerfile: Dockerfile
+    container_name: vault-cli
+    env_file:
+      - .env
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_TOKEN}
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - vault-network
+    profiles:
+      - cli
+    # Keep container running so we can reuse it with exec
+    command: ["sh", "-c", "while true; do sleep 3600; done"]
+    restart: unless-stopped
+
+networks:
+  vault-network:
+    driver: bridge
+
