@@ -1,0 +1,50 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Vault data and config (may contain secrets)
+vault-data/
+vault-config/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+/tmp/
+*.tmp
+
+.git/
+.gitignore
+README.md
+*.md
