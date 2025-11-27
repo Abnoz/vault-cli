@@ -17,7 +17,8 @@ dependencies = [
     "rich>=13.7.1",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
-    "pydantic>=2.8.0"
+    "pydantic>=2.8.0",
+    "slowapi>=0.1.9",
 ]
 
 [project.scripts]
@@ -32,7 +33,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/vault_cli", "src/vault_core"]
+packages = ["src/vault_cli", "src/vault_core", "src/vault_api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 import hvac
 from hvac import exceptions as hvac_exceptions
@@ -89,6 +89,51 @@ class VaultClient:
             mount_point=mount,
             path=secret_path,
             secret=data,
+        )
+
+    def list_paths(self, path: str) -> List[str]:
+        """List all paths under the given path.
+
+        Args:
+            path: Base path to list (e.g., "secret/data/project")
+
+        Returns:
+            List of path names (not full paths) under the given path
+
+        Raises:
+            VaultClientError: If listing fails
+        """
+        mount, secret_path = _split_kv2_path(path)
+        try:
+            response = self._with_retries(
+                self._client.secrets.kv.v2.list_secrets,
+                mount_point=mount,
+                path=secret_path,
+            )
+            # Response contains 'data' with 'keys' list
+            keys = response.get("data", {}).get("keys", [])
+            if not isinstance(keys, list):
+                return []
+            # Remove trailing slashes from keys (hvac returns them)
+            return [key.rstrip("/") for key in keys if key]
+        except hvac_exceptions.InvalidPath:
+            # Path doesn't exist or has no children
+            return []
+
+    def delete_data(self, path: str) -> None:
+        """Delete a secret path and all its versions.
+
+        Args:
+            path: Full path to delete (e.g., "secret/data/project/env")
+
+        Raises:
+            VaultClientError: If deletion fails
+        """
+        mount, secret_path = _split_kv2_path(path)
+        self._with_retries(
+            self._client.secrets.kv.v2.delete_metadata_and_all_versions,
+            mount_point=mount,
+            path=secret_path,
         )
 
 

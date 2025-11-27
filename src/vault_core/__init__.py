@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-__all__ = ["config", "schema", "vault"]
+__all__ = ["config", "projects", "schema", "vault"]
 
 
