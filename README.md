@@ -64,8 +64,10 @@ The project follows a clean architecture pattern with three main modules:
    ```bash
    export VAULT_ADDR=http://localhost:8200
    export VAULT_TOKEN=your-vault-token
-   export API_KEY=your-api-key  # For REST API
+   export API_KEY=your-secret-api-key-here  # For REST API authentication
    ```
+   
+   **Note**: The `API_KEY` value is what you'll use as the `X-API-Key` header when making API requests.
 
 ## Usage
 
@@ -144,31 +146,57 @@ uvicorn vault_api.app:app --host 0.0.0.0 --port 8000
 vault-api  # If configured as a script
 ```
 
+#### API Authentication
+
+The API uses API key authentication. The API key is configured via the `API_KEY` environment variable and must be sent in the `X-API-Key` header with each request.
+
+**Setting the API Key:**
+
+1. **For Docker/Compose**: Set `API_KEY` in your `.env` file:
+   ```bash
+   API_KEY=your-secret-api-key-here
+   ```
+
+2. **For Local Development**: Export as environment variable:
+   ```bash
+   export API_KEY=your-secret-api-key-here
+   ```
+
+**Using the API Key:**
+
+Include the `X-API-Key` header in all API requests. The value should match the `API_KEY` environment variable:
+
+```bash
+# Example with curl
+curl -H "X-API-Key: your-secret-api-key-here" http://localhost:8000/api/v1/projects
+```
+
 #### API Endpoints
 
 **Health Check:**
 ```bash
 GET /health
+# No authentication required
 ```
 
 **Project Operations:**
 ```bash
 # List all projects
 GET /api/v1/projects
-Headers: X-API-Key: your-api-key
+Headers: X-API-Key: your-secret-api-key-here
 
 # Get project details
 GET /api/v1/projects/{project_name}
-Headers: X-API-Key: your-api-key
+Headers: X-API-Key: your-secret-api-key-here
 
 # Create a new project
 POST /api/v1/projects/{project_name}
-Headers: X-API-Key: your-api-key
+Headers: X-API-Key: your-secret-api-key-here
 Body: {"environments": ["dev", "staging", "production"]}  # Optional
 
 # Update a project (add/remove environments)
 PUT /api/v1/projects/{project_name}
-Headers: X-API-Key: your-api-key
+Headers: X-API-Key: your-secret-api-key-here
 Body: {
   "add_environments": ["qa"],
   "remove_environments": ["test"]
@@ -176,7 +204,7 @@ Body: {
 
 # Delete a project
 DELETE /api/v1/projects/{project_name}
-Headers: X-API-Key: your-api-key
+Headers: X-API-Key: your-secret-api-key-here
 ```
 
 #### API Features
@@ -202,9 +230,55 @@ Headers: X-API-Key: your-api-key
 
 2. **Start the Vault stack:**
    ```bash
+   # Start Vault server
    docker-compose up -d vault
+   
+   # Initialize and populate Vault
    docker-compose up vault-init vault-populate
+   
+   # Start the API server (optional)
+   docker-compose up -d vault-api
    ```
+
+### Getting the Unseal Key
+
+When Vault is first initialized, it generates an unseal key and root token. You need to add these to your `.env` file.
+
+**Option 1: Check the initialization logs**
+```bash
+# View the vault-init container logs
+docker-compose logs vault-init
+
+# Look for lines like:
+# UNSEAL_KEY=xxxxx
+# ROOT_TOKEN=hvs.xxxxx
+```
+
+**Option 2: If Vault is already initialized but sealed**
+
+If Vault was initialized previously but you don't have the unseal key, you have two options:
+
+1. **Reset Vault (recommended for development):**
+   ```bash
+   # This will delete all Vault data and reinitialize
+   ./scripts/reset-vault-docker.sh
+   
+   # Then check the logs for the new unseal key
+   docker-compose logs vault-init
+   ```
+
+2. **Find the keys in previous logs:**
+   - Check your Docker logs history
+   - Check if you saved them when Vault was first initialized
+   - If Vault was initialized with multiple keys (default: 5 keys, threshold 3), you'll need 3 of the 5 keys
+
+**After getting the keys, update your `.env` file:**
+```bash
+VAULT_UNSEAL_KEY=<unseal-key-from-logs>
+VAULT_TOKEN=<root-token-from-logs>
+```
+
+**Note:** The updated initialization script uses a single unseal key (threshold=1) for easier development. If you reset Vault, you'll only need one unseal key going forward.
 
 3. **Use the CLI container:**
    ```bash
@@ -218,8 +292,17 @@ Headers: X-API-Key: your-api-key
 
 4. **Start the API server:**
    ```bash
+   # Start the API service
    docker-compose up -d vault-api
+   
+   # Check API health
+   curl http://localhost:8000/health
+   
+   # View API logs
+   docker-compose logs -f vault-api
    ```
+   
+   The API will be available at `http://localhost:8000` (or the port specified in `API_PORT`).
 
 ## Development
 

@@ -154,7 +154,7 @@ def get_vault_client() -> VaultClient:
 
 
 @app.get("/")
-async def root() -> dict[str, str]:
+async def root() -> dict:
     """Root endpoint with API information."""
     return {
         "name": "Vault Secrets API",
@@ -203,7 +203,6 @@ async def health() -> dict[str, str]:
         502: {"description": "Vault operation failed"},
     },
 )
-@limiter.limit(DEFAULT_WRITE_LIMIT, key_func=get_rate_limit_key)
 async def create_project_endpoint(
     request: Request,
     project_name: str,
@@ -271,6 +270,10 @@ async def create_project_endpoint(
     )
 
 
+# Apply rate limiting to the create endpoint (after function definition to avoid type issues)
+create_project_endpoint = write_rate_limit(create_project_endpoint)
+
+
 @app.get(
     "/api/v1/projects",
     response_model=ProjectListResponse,
@@ -285,7 +288,6 @@ async def create_project_endpoint(
         502: {"description": "Vault operation failed"},
     },
 )
-@limiter.limit(DEFAULT_READ_LIMIT, key_func=get_rate_limit_key)
 async def list_projects_endpoint(
     request: Request,
     api_settings: APISettings = Depends(get_api_settings),
@@ -319,6 +321,10 @@ async def list_projects_endpoint(
         raise handle_project_operation_error("list_projects", exc) from exc
 
 
+# Apply rate limiting to the list endpoint
+list_projects_endpoint = read_rate_limit(list_projects_endpoint)
+
+
 @app.get(
     "/api/v1/projects/{project_name}",
     response_model=ProjectInfoResponse,
@@ -334,7 +340,6 @@ async def list_projects_endpoint(
         502: {"description": "Vault operation failed"},
     },
 )
-@limiter.limit(DEFAULT_READ_LIMIT, key_func=get_rate_limit_key)
 async def get_project_endpoint(
     request: Request,
     project_name: str,
@@ -377,6 +382,10 @@ async def get_project_endpoint(
             project_name=project_name,
             not_found_status=status.HTTP_404_NOT_FOUND,
         ) from exc
+
+
+# Apply rate limiting to the get endpoint
+get_project_endpoint = read_rate_limit(get_project_endpoint)
 
 
 @app.put(
@@ -480,7 +489,6 @@ update_project_endpoint = write_rate_limit(update_project_endpoint)
         502: {"description": "Vault operation failed"},
     },
 )
-@limiter.limit(DEFAULT_WRITE_LIMIT, key_func=get_rate_limit_key)
 async def delete_project_endpoint(
     request: Request,
     project_name: str,
@@ -529,4 +537,8 @@ async def delete_project_endpoint(
         deleted_paths=deleted_paths,
         message=message,
     )
+
+
+# Apply rate limiting to the delete endpoint
+delete_project_endpoint = write_rate_limit(delete_project_endpoint)
 

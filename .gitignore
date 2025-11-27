@@ -23,11 +23,11 @@ dist/
 build/
 .pytest_cache/
 .coverage
+temp_auto_push.bat
 htmlcov/
 .tox/
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -49,3 +49,4 @@ Thumbs.db
 README.md
 *.md
 
+branch_structure.json
