@@ -1,0 +1,43 @@
+# Build stage
+FROM python:3.10-slim AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency files and source code
+COPY pyproject.toml ./
+COPY requirements.txt ./
+COPY README.md ./
+COPY src/ ./src/
+
+# Create virtual environment and install dependencies
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -e .
+
+# Final stage
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Copy application code
+COPY src/ ./src/
+COPY pyproject.toml ./
+
+# Set environment to use venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Verify installation
+RUN vault-cli --help > /dev/null
+
+CMD ["sh", "-c", "while true; do sleep 3600; done"]
+
